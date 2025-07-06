@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/charmbracelet/lipgloss"
+	"kwatch/runner"
 )
 
 // View renders the main view
@@ -175,7 +176,7 @@ func (m Model) renderCommandTable() string {
 		tableHeaderStyle.Width(12).Render("Status"),
 		tableHeaderStyle.Width(12).Render("Duration"),
 		tableHeaderStyle.Width(20).Render("Last Run"),
-		tableHeaderStyle.Width(12).Render("Err/Files"),
+		tableHeaderStyle.Width(12).Render("Count"),
 	)
 	
 	// Table rows
@@ -213,17 +214,30 @@ func (m Model) renderCommandTable() string {
 			lastRun = status.LastRun.Format("15:04:05")
 		}
 		
-		// Count - show errors and files
+		// Count - show test results as PASS/TOTAL or errors/files
 		count := "-"
 		if status.Result != nil {
-			if status.Result.IssueCount > 0 {
-				if status.Result.FileCount > 0 {
-					count = fmt.Sprintf("%d/%d", status.Result.IssueCount, status.Result.FileCount)
-				} else {
+			if status.Type == runner.TestRunner {
+				// For tests, show PASS/TOTAL format
+				if status.Result.TotalTests > 0 {
+					count = fmt.Sprintf("%d/%d", status.Result.PassedTests, status.Result.TotalTests)
+				} else if status.Result.IssueCount > 0 {
+					// Fallback for old test format
 					count = fmt.Sprintf("%d", status.Result.IssueCount)
+				} else {
+					count = "0"
 				}
 			} else {
-				count = "0"
+				// For other commands, show errors/files
+				if status.Result.IssueCount > 0 {
+					if status.Result.FileCount > 0 {
+						count = fmt.Sprintf("%d/%d", status.Result.IssueCount, status.Result.FileCount)
+					} else {
+						count = fmt.Sprintf("%d", status.Result.IssueCount)
+					}
+				} else {
+					count = "0"
+				}
 			}
 		}
 		

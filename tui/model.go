@@ -4,6 +4,7 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"kwatch/config"
 	"kwatch/runner"
 )
 
@@ -33,6 +34,8 @@ type Model struct {
 	history    *runner.ResultHistory
 	running    map[runner.CommandType]bool
 	lastRun    time.Time
+	runner     *runner.Runner
+	kwatchConfig *config.Config
 	
 	// UI state
 	selectedRow int
@@ -81,18 +84,37 @@ type CommandStatus struct {
 
 // NewModel creates a new model instance
 func NewModel(watchDir string) Model {
+	// Load kwatch configuration
+	kwatchConfig, err := config.Load(watchDir)
+	if err != nil {
+		// Fall back to default config if loading fails
+		kwatchConfig = config.DefaultConfig()
+	}
+	
+	// Create runner configuration
+	runnerConfig := runner.RunnerConfig{
+		DefaultTimeout: 30 * time.Second,
+		MaxParallel:    kwatchConfig.MaxParallel,
+		WorkingDir:     watchDir,
+	}
+	
+	// Create runner instance
+	r := runner.NewRunner(runnerConfig, kwatchConfig)
+	
 	return Model{
-		ready:      false,
-		width:      80,
-		height:     24,
-		viewMode:   ViewMain,
-		watchDir:   watchDir,
-		serverPort: 8080,
-		history:    &runner.ResultHistory{},
-		running:    make(map[runner.CommandType]bool),
-		lastRun:    time.Now(),
-		logs:       make([]LogEntry, 0),
-		maxLogs:    100,
+		ready:        false,
+		width:        80,
+		height:       24,
+		viewMode:     ViewMain,
+		watchDir:     watchDir,
+		serverPort:   8080,
+		history:      &runner.ResultHistory{},
+		running:      make(map[runner.CommandType]bool),
+		lastRun:      time.Now(),
+		runner:       r,
+		kwatchConfig: kwatchConfig,
+		logs:         make([]LogEntry, 0),
+		maxLogs:      100,
 		watcherActive: false,
 		serverActive:  false,
 	}
@@ -319,9 +341,15 @@ func (m *Model) GetErrorMetrics() (int, int) {
 	
 	for _, status := range statuses {
 		if status.Result != nil && !status.Result.Passed {
-			totalErrors += status.Result.IssueCount
-			if status.Result.FileCount > 0 {
-				errorFiles += status.Result.FileCount
+			if status.Type == runner.TestRunner {
+				// For tests, count failed tests as errors
+				totalErrors += status.Result.FailedTests
+			} else {
+				// For other commands, count issues as errors
+				totalErrors += status.Result.IssueCount
+				if status.Result.FileCount > 0 {
+					errorFiles += status.Result.FileCount
+				}
 			}
 		}
 	}

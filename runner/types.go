@@ -16,6 +16,10 @@ type CommandResult struct {
 	Duration   time.Duration `json:"duration"`
 	Timestamp  time.Time     `json:"timestamp"`
 	Error      string        `json:"error,omitempty"`
+	// Test-specific fields
+	TotalTests   int `json:"total_tests,omitempty"`
+	PassedTests  int `json:"passed_tests,omitempty"`
+	FailedTests  int `json:"failed_tests,omitempty"`
 }
 
 // RunResult represents the result of running multiple commands

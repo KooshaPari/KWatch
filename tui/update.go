@@ -215,17 +215,28 @@ func (m Model) handleEnterKey() (tea.Model, tea.Cmd) {
 
 // runAllCommands runs all configured commands
 func (m Model) runAllCommands() tea.Cmd {
-	// Mark all commands as starting
-	commands := []runner.CommandType{
-		runner.TypescriptCheck,
-		runner.LintCheck, 
-		runner.TestRunner,
+	if m.runner == nil {
+		return nil
 	}
 	
-	// Create batch of start messages and command executions
+	// Create individual commands for each enabled command type
 	var cmds []tea.Cmd
-	for _, cmdType := range commands {
-		// Capture cmdType in closure properly
+	enabledCommands := m.kwatchConfig.GetEnabledCommands()
+	
+	for name := range enabledCommands {
+		var cmdType runner.CommandType
+		switch name {
+		case "typescript":
+			cmdType = runner.TypescriptCheck
+		case "lint":
+			cmdType = runner.LintCheck
+		case "test":
+			cmdType = runner.TestRunner
+		default:
+			cmdType = runner.CommandType(name)
+		}
+		
+		// Create a command to run this specific command type
 		ct := cmdType
 		cmds = append(cmds, 
 			tea.Cmd(func() tea.Msg {
@@ -250,154 +261,62 @@ func (m Model) runCommandsOnChange() tea.Cmd {
 
 // runSpecificCommand runs a specific command type
 func (m Model) runSpecificCommand(cmdType runner.CommandType) tea.Cmd {
+	if m.runner == nil {
+		return nil
+	}
+	
 	return tea.Cmd(func() tea.Msg {
-		// Execute the command (don't send start message from here - it creates wrong program)
-		result := executeCommand(cmdType, m.watchDir)
+		// Find the command configuration for this type
+		enabledCommands := m.kwatchConfig.GetEnabledCommands()
+		
+		var configCmd *runner.Command
+		for name, cmd := range enabledCommands {
+			var mappedType runner.CommandType
+			switch name {
+			case "typescript":
+				mappedType = runner.TypescriptCheck
+			case "lint":
+				mappedType = runner.LintCheck
+			case "test":
+				mappedType = runner.TestRunner
+			default:
+				mappedType = runner.CommandType(name)
+			}
+			
+			if mappedType == cmdType {
+				timeout := m.kwatchConfig.GetTimeout(name)
+				configCmd = &runner.Command{
+					Type:    cmdType,
+					Command: cmd.Command,
+					Args:    cmd.Args,
+					Timeout: timeout,
+				}
+				break
+			}
+		}
+		
+		if configCmd == nil {
+			// Fallback for unknown command types
+			return commandResultMsg{
+				result: runner.CommandResult{
+					Command:   string(cmdType),
+					Passed:    false,
+					Output:    "Command not found in configuration",
+					Timestamp: time.Now(),
+					Error:     "Command not configured",
+				},
+			}
+		}
+		
+		// Execute the command using the runner
+		ctx := context.Background()
+		result := m.runner.RunCommand(ctx, *configCmd)
 		
 		// Send the result
 		return commandResultMsg{result: result}
 	})
 }
 
-// executeCommand executes a command and returns the result
-func executeCommand(cmdType runner.CommandType, workDir string) runner.CommandResult {
-	startTime := time.Now()
-	
-	// Create timeout context
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
-	defer cancel()
-	
-	var cmd *exec.Cmd
-	var cmdString string
-	
-	switch cmdType {
-	case runner.TypescriptCheck:
-		cmd = exec.CommandContext(ctx, "npx", "tsc", "--noEmit")
-		cmdString = "tsc"
-	case runner.LintCheck:
-		cmd = exec.CommandContext(ctx, "npm", "run", "lint")
-		cmdString = "lint"
-	case runner.TestRunner:
-		cmd = exec.CommandContext(ctx, "npm", "run", "test")
-		cmdString = "test"
-	default:
-		return runner.CommandResult{
-			Command:    string(cmdType),
-			Passed:     false,
-			IssueCount: 0,
-			Output:     "Unknown command type",
-			Duration:   0,
-			Timestamp:  startTime,
-			Error:      "Unknown command type",
-		}
-	}
-	
-	cmd.Dir = workDir
-	
-	output, err := cmd.CombinedOutput()
-	duration := time.Since(startTime)
-	
-	result := runner.CommandResult{
-		Command:    cmdString,
-		Passed:     err == nil,
-		IssueCount: 0,
-		Output:     string(output),
-		Duration:   duration,
-		Timestamp:  startTime,
-	}
-	
-	if err != nil {
-		result.Error = err.Error()
-	}
-	
-	// Parse issue count and file count from output
-	result.IssueCount, result.FileCount = parseIssueAndFileCount(cmdString, string(output))
-	
-	return result
-}
-
-// parseIssueAndFileCount extracts issue count and file count from command output
-func parseIssueAndFileCount(command, output string) (int, int) {
-	switch command {
-	case "tsc":
-		// Count "error TS" occurrences and unique files
-		issueCount := 0
-		fileMap := make(map[string]bool)
-		lines := strings.Split(output, "\n")
-		
-		for _, line := range lines {
-			if strings.Contains(line, "error TS") {
-				issueCount++
-				// Extract file path (format: "file.ts(line,col): error TS...")
-				parts := strings.Split(line, "(")
-				if len(parts) > 0 {
-					fileName := strings.TrimSpace(parts[0])
-					if fileName != "" {
-						fileMap[fileName] = true
-					}
-				}
-			}
-		}
-		return issueCount, len(fileMap)
-		
-	case "lint":
-		// Parse ESLint output for problems and files
-		issueCount := 0
-		fileMap := make(map[string]bool)
-		lines := strings.Split(output, "\n")
-		
-		for _, line := range lines {
-			// Count individual error/warning lines
-			if strings.Contains(line, "error") || strings.Contains(line, "warning") {
-				// Lines like "  8:40  warning  Unexpected any..."
-				parts := strings.Fields(line)
-				if len(parts) >= 2 && strings.Contains(parts[1], ":") {
-					issueCount++
-				}
-			}
-			// Count files with issues (lines starting with file path)
-			if strings.HasPrefix(line, "/") && strings.Contains(line, ".ts") {
-				fileMap[line] = true
-			}
-		}
-		
-		// If we found issues but no files, assume 1 file
-		if issueCount > 0 && len(fileMap) == 0 {
-			return issueCount, 1
-		}
-		
-		return issueCount, len(fileMap)
-		
-	case "test":
-		// Count failed tests and test files
-		issueCount := 0
-		fileCount := 0
-		
-		if strings.Contains(output, "No tests found") {
-			return 0, 0
-		}
-		
-		lines := strings.Split(output, "\n")
-		for _, line := range lines {
-			if strings.Contains(line, "FAIL") || strings.Contains(line, "failed") {
-				issueCount++
-			}
-			if strings.Contains(line, ".test.") || strings.Contains(line, ".spec.") {
-				fileCount++
-			}
-		}
-		
-		// If we found failures but no test files, assume 1 file
-		if issueCount > 0 && fileCount == 0 {
-			fileCount = 1
-		}
-		
-		return issueCount, fileCount
-		
-	default:
-		return 0, 0
-	}
-}
 
 // checkStatus checks the current status of watcher and server
 func (m Model) checkStatus() tea.Cmd {

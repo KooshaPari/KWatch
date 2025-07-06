@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "kwatch-dev": {
+      "command": "/Users/kooshapari/Cwatch/kwatch",
+      "args": ["mcp", "/Users/kooshapari/Cwatch"],
+      "env": {
+        "NODE_ENV": "development"
+      }
+    }
+  }
+}

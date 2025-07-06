@@ -1,6 +1,16 @@
 # KWatch MCP Integration
 
-KWatch now supports the **Model Context Protocol (MCP)**, allowing AI assistants like Claude to monitor your project's build status, run commands, and access command history.
+KWatch now supports the **Model Context Protocol (MCP) 2025-03-26 Specification**, allowing AI assistants like Claude to monitor your project's build status, run commands, and access command history.
+
+## 🌟 Full MCP Specification Compliance
+
+✅ **Protocol Version**: 2025-03-26 (latest)
+✅ **Backwards Compatibility**: Supports 2024-11-05
+✅ **Transport**: stdio (most compatible)
+✅ **Tool Response Format**: Proper content arrays with `isError` flag
+✅ **Error Handling**: Standard JSON-RPC error codes with structured data
+✅ **Capabilities**: Tools capability with `listChanged` notifications
+✅ **Tool Schema**: Valid JSON Schema for all inputs
 
 ## 🚀 Quick Start
 
@@ -128,8 +138,11 @@ Once configured, you can ask Claude:
 ## 🔧 Technical Details
 
 - **Protocol**: JSON-RPC 2.0 over stdio transport
-- **Compatibility**: MCP protocol versions 2024-11-05 and 2025-03-26
+- **Specification**: MCP 2025-03-26 (latest) with 2024-11-05 backwards compatibility
 - **Transport**: stdio (most compatible with MCP clients)
+- **Tool Response Format**: Content arrays with `type: "text"` and `isError` flag
+- **Error Handling**: Standard JSON-RPC error codes (-32700, -32600, -32601, -32602, -32603)
+- **Capabilities**: Properly declared with tools capability and listChanged support
 - **Output**: Structured JSON responses with build status, error counts, and timestamps
 
 ## 🐛 Troubleshooting
@@ -151,9 +164,11 @@ Once configured, you can ask Claude:
 
 ## 📚 Resources
 
-- [Model Context Protocol Specification](https://modelcontextprotocol.io)
+- [Model Context Protocol Specification 2025-03-26](https://modelcontextprotocol.io/specification/2025-03-26)
+- [MCP Official Documentation](https://modelcontextprotocol.io)
 - [Claude Desktop MCP Guide](https://claude.ai/docs/mcp)
 - [KWatch Documentation](./README.md)
+- [MCP GitHub Repository](https://github.com/modelcontextprotocol/modelcontextprotocol)
 
 ## 🎯 Use Cases
 

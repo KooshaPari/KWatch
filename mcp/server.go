@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"kwatch/config"
 	"kwatch/runner"
 )
 
@@ -68,8 +69,17 @@ type InitializeResult struct {
 
 // Capabilities represents server capabilities
 type Capabilities struct {
-	Tools map[string]interface{} `json:"tools,omitempty"`
+	Tools   *ToolsCapability   `json:"tools,omitempty"`
+	Logging *LoggingCapability `json:"logging,omitempty"`
 }
+
+// ToolsCapability represents tools capability
+type ToolsCapability struct {
+	ListChanged bool `json:"listChanged"`
+}
+
+// LoggingCapability represents logging capability
+type LoggingCapability struct{}
 
 // ServerInfo represents server information
 type ServerInfo struct {
@@ -95,15 +105,22 @@ type ToolSchema struct {
 func NewMCPServer(workDir string) *MCPServer {
 	ctx, cancel := context.WithCancel(context.Background())
 	
-	// Create runner configuration
-	config := runner.RunnerConfig{
-		DefaultTimeout: 30 * time.Second,
-		MaxParallel:    3,
+	// Load kwatch configuration
+	kwatchConfig, err := config.Load(workDir)
+	if err != nil {
+		// Fall back to default config if loading fails
+		kwatchConfig = config.DefaultConfig()
+	}
+	
+	// Create runner configuration with shorter timeouts for MCP
+	runnerConfig := runner.RunnerConfig{
+		DefaultTimeout: 15 * time.Second,
+		MaxParallel:    kwatchConfig.MaxParallel,
 		WorkingDir:     workDir,
 	}
 
 	return &MCPServer{
-		runner:  runner.NewRunner(config),
+		runner:  runner.NewRunner(runnerConfig, kwatchConfig),
 		workDir: workDir,
 		reader:  bufio.NewScanner(os.Stdin),
 		writer:  os.Stdout,
@@ -114,6 +131,8 @@ func NewMCPServer(workDir string) *MCPServer {
 
 // Start starts the MCP server
 func (s *MCPServer) Start() error {
+	fmt.Fprintf(os.Stderr, "MCP: Server starting, listening on stdin...\n")
+	
 	for s.reader.Scan() {
 		line := s.reader.Text()
 		if strings.TrimSpace(line) == "" {
@@ -121,10 +140,15 @@ func (s *MCPServer) Start() error {
 		}
 
 		if err := s.handleMessage(line); err != nil {
-			fmt.Fprintf(os.Stderr, "Error handling message: %v\n", err)
+			fmt.Fprintf(os.Stderr, "MCP: Error handling message: %v\n", err)
 		}
 	}
 
+	if err := s.reader.Err(); err != nil {
+		fmt.Fprintf(os.Stderr, "MCP: Scanner error: %v\n", err)
+	}
+	
+	fmt.Fprintf(os.Stderr, "MCP: Server stopped\n")
 	return s.reader.Err()
 }
 
@@ -135,11 +159,16 @@ func (s *MCPServer) Stop() {
 
 // handleMessage processes incoming JSON-RPC messages
 func (s *MCPServer) handleMessage(message string) error {
+	fmt.Fprintf(os.Stderr, "MCP: Received message: %s\n", message)
+	
 	var req JSONRPCRequest
 	if err := json.Unmarshal([]byte(message), &req); err != nil {
+		fmt.Fprintf(os.Stderr, "MCP: Parse error: %v\n", err)
 		return s.sendError(nil, -32700, "Parse error", err)
 	}
 
+	fmt.Fprintf(os.Stderr, "MCP: Handling method: %s\n", req.Method)
+	
 	switch req.Method {
 	case "initialize":
 		return s.handleInitialize(req)
@@ -149,8 +178,10 @@ func (s *MCPServer) handleMessage(message string) error {
 		return s.handleToolsCall(req)
 	case "notifications/initialized":
 		// Client confirms initialization - no response needed
+		fmt.Fprintf(os.Stderr, "MCP: Client initialized\n")
 		return nil
 	default:
+		fmt.Fprintf(os.Stderr, "MCP: Method not found: %s\n", req.Method)
 		return s.sendError(req.ID, -32601, "Method not found", nil)
 	}
 }
@@ -164,13 +195,19 @@ func (s *MCPServer) handleInitialize(req JSONRPCRequest) error {
 
 	// Validate protocol version
 	if params.ProtocolVersion != "2024-11-05" && params.ProtocolVersion != "2025-03-26" {
-		return s.sendError(req.ID, -32602, "Unsupported protocol version", nil)
+		return s.sendError(req.ID, -32602, "Unsupported protocol version", map[string]interface{}{
+			"supported": []string{"2024-11-05", "2025-03-26"},
+			"requested": params.ProtocolVersion,
+		})
 	}
 
 	result := InitializeResult{
-		ProtocolVersion: "2024-11-05",
+		ProtocolVersion: "2025-03-26",
 		Capabilities: Capabilities{
-			Tools: map[string]interface{}{},
+			Tools: &ToolsCapability{
+				ListChanged: true,
+			},
+			Logging: &LoggingCapability{},
 		},
 		ServerInfo: ServerInfo{
 			Name:    "kwatch-mcp",
@@ -188,7 +225,7 @@ func (s *MCPServer) handleToolsList(req JSONRPCRequest) error {
 			Name:        "get_build_status",
 			Description: "Get the current build status of the monitored project including TypeScript, linting, and test results",
 			InputSchema: ToolSchema{
-				Type:       "object",
+				Type: "object",
 				Properties: map[string]interface{}{
 					"format": map[string]interface{}{
 						"type":        "string",
@@ -203,7 +240,7 @@ func (s *MCPServer) handleToolsList(req JSONRPCRequest) error {
 			Name:        "run_commands",
 			Description: "Execute build commands (TypeScript check, linting, tests) manually",
 			InputSchema: ToolSchema{
-				Type:       "object",
+				Type: "object",
 				Properties: map[string]interface{}{
 					"command": map[string]interface{}{
 						"type":        "string",
@@ -218,7 +255,7 @@ func (s *MCPServer) handleToolsList(req JSONRPCRequest) error {
 			Name:        "get_command_history",
 			Description: "Get the history of previously executed commands with results and timestamps",
 			InputSchema: ToolSchema{
-				Type:       "object",
+				Type: "object",
 				Properties: map[string]interface{}{
 					"limit": map[string]interface{}{
 						"type":        "number",
@@ -261,7 +298,9 @@ func (s *MCPServer) handleToolsCall(req JSONRPCRequest) error {
 	case "get_command_history":
 		return s.handleGetCommandHistory(req.ID, params.Arguments)
 	default:
-		return s.sendError(req.ID, -32601, "Tool not found", nil)
+		return s.sendError(req.ID, -32602, "Unknown tool", map[string]interface{}{
+			"tool": params.Name,
+		})
 	}
 }
 
@@ -272,10 +311,14 @@ func (s *MCPServer) handleGetBuildStatus(id interface{}, args map[string]interfa
 		format = f
 	}
 
-	ctx := context.Background()
+	// Create context with timeout for MCP response
+	ctx, cancel := context.WithTimeout(context.Background(), 12 * time.Second)
+	defer cancel()
+	
 	results := s.runner.RunAll(ctx)
 
 	var content string
+	
 	if format == "compact" {
 		content = runner.FormatCompactStatus(results)
 	} else {
@@ -288,9 +331,10 @@ func (s *MCPServer) handleGetBuildStatus(id interface{}, args map[string]interfa
 		
 		jsonBytes, err := json.MarshalIndent(status, "", "  ")
 		if err != nil {
-			return s.sendError(id, -32603, "Internal error", err)
+			content = fmt.Sprintf("Error formatting status: %v", err)
+		} else {
+			content = string(jsonBytes)
 		}
-		content = string(jsonBytes)
 	}
 
 	result := map[string]interface{}{
@@ -312,7 +356,10 @@ func (s *MCPServer) handleRunCommands(id interface{}, args map[string]interface{
 		command = c
 	}
 
-	ctx := context.Background()
+	// Create context with timeout for MCP response
+	ctx, cancel := context.WithTimeout(context.Background(), 18 * time.Second)
+	defer cancel()
+	
 	var results map[runner.CommandType]runner.CommandResult
 
 	switch command {
@@ -323,7 +370,7 @@ func (s *MCPServer) handleRunCommands(id interface{}, args map[string]interface{
 			Type:    runner.TypescriptCheck,
 			Command: "npx",
 			Args:    []string{"tsc", "--noEmit"},
-			Timeout: 30 * time.Second,
+			Timeout: 15 * time.Second,
 		}
 		result := s.runner.RunCommand(ctx, cmd)
 		results = map[runner.CommandType]runner.CommandResult{
@@ -334,7 +381,7 @@ func (s *MCPServer) handleRunCommands(id interface{}, args map[string]interface{
 			Type:    runner.LintCheck,
 			Command: "npx",
 			Args:    []string{"eslint", ".", "--ext", ".ts,.tsx,.js,.jsx"},
-			Timeout: 30 * time.Second,
+			Timeout: 15 * time.Second,
 		}
 		result := s.runner.RunCommand(ctx, cmd)
 		results = map[runner.CommandType]runner.CommandResult{
@@ -345,14 +392,16 @@ func (s *MCPServer) handleRunCommands(id interface{}, args map[string]interface{
 			Type:    runner.TestRunner,
 			Command: "npm",
 			Args:    []string{"test"},
-			Timeout: 60 * time.Second,
+			Timeout: 20 * time.Second,
 		}
 		result := s.runner.RunCommand(ctx, cmd)
 		results = map[runner.CommandType]runner.CommandResult{
 			runner.TestRunner: result,
 		}
 	default:
-		return s.sendError(id, -32602, "Invalid command", nil)
+		return s.sendError(id, -32602, "Invalid command", map[string]interface{}{
+			"command": command,
+		})
 	}
 
 	response := map[string]interface{}{
@@ -362,15 +411,18 @@ func (s *MCPServer) handleRunCommands(id interface{}, args map[string]interface{
 	}
 
 	jsonBytes, err := json.MarshalIndent(response, "", "  ")
+	var content string
 	if err != nil {
-		return s.sendError(id, -32603, "Internal error", err)
+		content = fmt.Sprintf("Error formatting results: %v", err)
+	} else {
+		content = string(jsonBytes)
 	}
 
 	result := map[string]interface{}{
 		"content": []map[string]interface{}{
 			{
 				"type": "text",
-				"text": string(jsonBytes),
+				"text": content,
 			},
 		},
 	}
@@ -425,15 +477,18 @@ func (s *MCPServer) handleGetCommandHistory(id interface{}, args map[string]inte
 	}
 
 	jsonBytes, err := json.MarshalIndent(response, "", "  ")
+	var content string
 	if err != nil {
-		return s.sendError(id, -32603, "Internal error", err)
+		content = fmt.Sprintf("Error formatting history: %v", err)
+	} else {
+		content = string(jsonBytes)
 	}
 
 	result := map[string]interface{}{
 		"content": []map[string]interface{}{
 			{
 				"type": "text",
-				"text": string(jsonBytes),
+				"text": content,
 			},
 		},
 	}
@@ -457,13 +512,22 @@ func formatCommandResults(results map[runner.CommandType]runner.CommandResult) m
 			name = string(cmdType)
 		}
 
-		formatted[name] = map[string]interface{}{
+		resultData := map[string]interface{}{
 			"passed":      result.Passed,
 			"issue_count": result.IssueCount,
 			"file_count":  result.FileCount,
 			"duration":    result.Duration.String(),
 			"timestamp":   result.Timestamp.Format(time.RFC3339),
 		}
+		
+		// Add test-specific fields if this is a test result
+		if cmdType == runner.TestRunner {
+			resultData["total_tests"] = result.TotalTests
+			resultData["passed_tests"] = result.PassedTests
+			resultData["failed_tests"] = result.FailedTests
+		}
+		
+		formatted[name] = resultData
 	}
 
 	return formatted
@@ -499,9 +563,21 @@ func (s *MCPServer) sendError(id interface{}, code int, message string, data int
 func (s *MCPServer) writeMessage(message interface{}) error {
 	jsonBytes, err := json.Marshal(message)
 	if err != nil {
+		fmt.Fprintf(os.Stderr, "MCP: Error marshaling message: %v\n", err)
 		return err
 	}
 
 	_, err = fmt.Fprintf(s.writer, "%s\n", string(jsonBytes))
-	return err
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "MCP: Error writing message: %v\n", err)
+		return err
+	}
+
+	// Flush stdout to ensure message is sent immediately
+	if f, ok := s.writer.(*os.File); ok {
+		f.Sync()
+	}
+
+	fmt.Fprintf(os.Stderr, "MCP: Sent message: %s\n", string(jsonBytes))
+	return nil
 }

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	"kwatch/config"
 	"kwatch/runner"
 )
 
@@ -59,14 +60,21 @@ Examples:
 			os.Exit(1)
 		}
 
+		// Load kwatch configuration
+		kwatchConfig, err := config.Load(absDir)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error loading kwatch config: %v\n", err)
+			os.Exit(1)
+		}
+
 		// Create runner configuration
-		config := runner.RunnerConfig{
+		runnerConfig := runner.RunnerConfig{
 			DefaultTimeout: 30 * time.Second,
-			MaxParallel:    3,
+			MaxParallel:    kwatchConfig.MaxParallel,
 			WorkingDir:     absDir,
 		}
 
-		r := runner.NewRunner(config)
+		r := runner.NewRunner(runnerConfig, kwatchConfig)
 		
 		// For this demo, we'll run once to populate history
 		// In a real implementation, history would be persistent
