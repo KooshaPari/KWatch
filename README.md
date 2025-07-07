@@ -12,6 +12,14 @@ A fast, lightweight project monitoring tool for TypeScript/JavaScript projects. 
 
 *Terminal demo showing daemon startup and API usage*
 
+![TUI Interface](screenshots/kwatch-tui-interface.png)
+
+*Real-time TUI interface with live status monitoring*
+
+![File Watching Demo](screenshots/kwatch-file-watching.gif)
+
+*File watching demonstration: pass→fail→pass transitions*
+
 <details>
 <summary>🎬 Live Demo Output</summary>
 
@@ -123,6 +131,61 @@ fi
 - **Global Installation** - Install like any system command (`cp`, `ls`, etc.)
 - **Cross-platform** - Works on Linux, macOS, and Windows
 - **MCP Integration** - Full Model Context Protocol support for AI assistants
+
+## 👁️ File Watching in Action
+
+![File Watching Demo](screenshots/kwatch-file-watching.gif)
+
+KWatch automatically detects file changes and runs appropriate checks in real-time:
+
+1. **Initial State**: All checks passing ✅
+2. **File Change**: Edit introduces TypeScript error
+3. **Auto-Detection**: KWatch immediately detects the change
+4. **Error Reporting**: Shows specific error location and details
+5. **Auto-Recovery**: Fix the file and status returns to healthy
+
+### Real-world Example
+
+```bash
+# Start monitoring
+$ kwatch daemon --port 3737
+
+# In another terminal, check status
+$ curl localhost:3737/status/compact
+TSC:✓0 LINT:✓0 TEST:✓0
+
+# Edit a file to introduce an error...
+# KWatch automatically detects the change
+
+$ curl localhost:3737/status/compact
+TSC:✗1 LINT:✓0 TEST:✓0
+
+# Fix the error...
+# KWatch automatically re-runs checks
+
+$ curl localhost:3737/status/compact
+TSC:✓0 LINT:✓0 TEST:✓0
+```
+
+## 🖥️ TUI Interface
+
+![TUI Interface](screenshots/kwatch-tui-interface.png)
+
+The Terminal User Interface provides real-time monitoring with:
+
+- **Live Status Cards** - TypeScript, ESLint, and Test results
+- **File Watcher Status** - Shows active monitoring with visual indicators
+- **Recent Activity Log** - Timestamped history of all checks
+- **Interactive Controls** - Navigate, refresh, and control the interface
+- **Color-coded Results** - Green for pass, red for fail, blue for info
+
+### TUI Features
+
+- **Real-time Updates** - Sub-second response to file changes
+- **Detailed Metrics** - Issue counts, duration, file counts, test coverage
+- **Keyboard Navigation** - Full keyboard control for efficiency
+- **Responsive Layout** - Adapts to different terminal sizes
+- **Status Persistence** - Maintains state across sessions
 
 ## Installation
 
