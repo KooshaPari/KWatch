@@ -1,0 +1,63 @@
+{
+    "name": "proc-service",
+    "version": "1.0.0",
+    "description": "Development process monitoring service with TUI and CLI interface",
+    "main": "dist/proc-service.js",
+    "scripts": {
+        "build": "tsc",
+        "dev": "ts-node proc-service.ts",
+        "start": "node dist/proc-service.js",
+        "proc:start": "ts-node proc-service.ts",
+        "proc:build": "tsc && node dist/proc-service.js",
+        "cli": "ts-node proc-cli.ts",
+        "lint": "eslint . --ext .ts,.js",
+        "test": "jest --config jest.config.mjs",
+        "install:global": "npm install -g .",
+        "setup": "npm install && npm run build",
+        "test:watch": "jest --config jest.config.mjs --watch"
+    },
+    "bin": {
+        "proc-service": "./dist/proc-service.js",
+        "proc-cli": "./dist/proc-cli.js"
+    },
+    "keywords": [
+        "development",
+        "monitoring",
+        "tui",
+        "cli",
+        "typescript",
+        "build",
+        "test",
+        "lint"
+    ],
+    "author": "",
+    "license": "MIT",
+    "dependencies": {
+        "@ffmpeg-installer/ffmpeg": "^1.1.0",
+        "blessed": "^0.1.81",
+        "chokidar": "^3.5.3",
+        "playwright": "^1.53.2"
+    },
+    "devDependencies": {
+        "@testing-library/jest-dom": "^6.6.3",
+        "@testing-library/react": "^16.3.0",
+        "@testing-library/user-event": "^14.6.1",
+        "@types/blessed": "^0.1.21",
+        "@types/jest": "^30.0.0",
+        "@types/node": "^20.0.0",
+        "@typescript-eslint/eslint-plugin": "^6.0.0",
+        "@typescript-eslint/parser": "^6.0.0",
+        "eslint": "^8.0.0",
+        "jest": "^30.0.4",
+        "jest-environment-jsdom": "^30.0.4",
+        "ts-node": "^10.0.0",
+        "typescript": "^5.0.0"
+    },
+    "engines": {
+        "node": ">=16.0.0"
+    },
+    "files": [
+        "dist/",
+        "README.md"
+    ]
+}

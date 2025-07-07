@@ -1,0 +1,20 @@
+{
+  "mcpServers": {
+    "kwatch-dev": {
+      "command": "/path/to/kwatch",
+      "args": ["mcp", "/path/to/your/project"],
+      "description": "KWatch build monitoring for development project",
+      "env": {
+        "NODE_ENV": "development"
+      }
+    },
+    "kwatch-prod": {
+      "command": "/usr/local/bin/kwatch",
+      "args": ["--dir", "/var/www/app", "mcp"],
+      "description": "KWatch build monitoring for production project",
+      "env": {
+        "NODE_ENV": "production"
+      }
+    }
+  }
+}

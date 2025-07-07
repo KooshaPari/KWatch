@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "kwatch": {
+      "command": "kwatch",
+      "args": ["mcp", "."],
+      "env": {}
+    }
+  }
+}
