@@ -1,0 +1,46 @@
+# Development Environment Configuration
+# Optimized for fast feedback during development
+
+defaultTimeout: 20s
+maxParallel: 4
+
+commands:
+  typescript:
+    command: npx
+    args:
+      - tsc
+      - --noEmit
+      - --incremental
+    timeout: 25s
+    enabled: true
+
+  lint:
+    command: npx
+    args:
+      - eslint
+      - .
+      - --ext
+      - .ts,.tsx,.js,.jsx
+      - --fix
+      - --cache
+    timeout: 20s
+    enabled: true
+
+  test:
+    command: npm
+    args:
+      - run
+      - test
+      - --watchAll=false
+      - --passWithNoTests
+    timeout: 45s
+    enabled: true
+
+  format:
+    command: npx
+    args:
+      - prettier
+      - --write
+      - .
+    timeout: 15s
+    enabled: true

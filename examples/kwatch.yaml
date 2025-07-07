@@ -1,0 +1,85 @@
+# KWatch Configuration Example
+# Place this file at .kwatch/kwatch.yaml in your project root
+
+# Global settings
+defaultTimeout: 30s
+maxParallel: 3
+
+# Command definitions
+commands:
+  # TypeScript type checking
+  typescript:
+    command: npx
+    args:
+      - tsc
+      - --noEmit
+    timeout: 30s
+    enabled: true
+
+  # ESLint code linting
+  lint:
+    command: npx
+    args:
+      - eslint
+      - .
+      - --ext
+      - .ts,.tsx,.js,.jsx
+    timeout: 30s
+    enabled: true
+
+  # Jest testing
+  test:
+    command: npm
+    args:
+      - test
+    timeout: 60s
+    enabled: true
+
+  # Optional: Build command (disabled by default)
+  build:
+    command: npm
+    args:
+      - run
+      - build
+    timeout: 120s
+    enabled: false
+
+  # Optional: Prettier formatting (disabled by default)
+  format:
+    command: npx
+    args:
+      - prettier
+      - --check
+      - .
+    timeout: 30s
+    enabled: false
+
+  # Optional: Security audit (disabled by default)
+  audit:
+    command: npm
+    args:
+      - audit
+      - --audit-level
+      - moderate
+    timeout: 60s
+    enabled: false
+
+# Configuration Notes:
+# 
+# 1. Commands run in parallel up to maxParallel limit
+# 2. Each command has individual timeout settings
+# 3. Disabled commands are ignored completely
+# 4. You can add custom commands beyond the defaults
+# 5. Arguments are passed as array elements
+# 6. Timeouts use Go duration format (30s, 2m, 1h, etc.)
+#
+# Common timeout values:
+# - TypeScript: 30s-60s (depends on project size)
+# - Linting: 15s-30s (usually fast)
+# - Testing: 60s-300s (depends on test suite)
+# - Building: 120s-600s (depends on complexity)
+#
+# To customize for your project:
+# 1. Run: kwatch config init
+# 2. Edit: kwatch config edit
+# 3. View: kwatch config show

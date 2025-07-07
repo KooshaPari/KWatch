@@ -187,6 +187,176 @@ The Terminal User Interface provides real-time monitoring with:
 - **Responsive Layout** - Adapts to different terminal sizes
 - **Status Persistence** - Maintains state across sessions
 
+## ⚙️ Configuration System
+
+KWatch uses a flexible YAML-based configuration system to customize which commands to run and how to run them.
+
+### Configuration File
+
+KWatch looks for `.kwatch/kwatch.yaml` in your project directory:
+
+```yaml
+defaultTimeout: 30s
+maxParallel: 3
+commands:
+  typescript:
+    command: npx
+    args:
+      - tsc
+      - --noEmit
+    timeout: 30s
+    enabled: true
+  lint:
+    command: npx
+    args:
+      - eslint
+      - .
+      - --ext
+      - .ts,.tsx,.js,.jsx
+    timeout: 30s
+    enabled: true
+  test:
+    command: npm
+    args:
+      - test
+    timeout: 60s
+    enabled: true
+```
+
+### Configuration Commands
+
+<details>
+<summary>📋 Complete Configuration Reference</summary>
+
+#### Initialize Configuration
+```bash
+# Create default config in current directory
+kwatch config init
+
+# Create config in specific directory
+kwatch config init /path/to/project
+
+# Force overwrite existing config
+kwatch config init --force
+```
+
+#### View Configuration
+```bash
+# Show current configuration
+kwatch config show
+
+# Show config for specific directory
+kwatch config show /path/to/project
+```
+
+#### Edit Configuration
+```bash
+# Interactive configuration editor
+kwatch config edit
+
+# Edit config for specific directory
+kwatch config edit /path/to/project
+```
+
+</details>
+
+### Custom Commands
+
+You can add custom commands beyond the default TypeScript, lint, and test:
+
+```yaml
+commands:
+  # Custom build command
+  build:
+    command: npm
+    args: [run, build]
+    timeout: 120s
+    enabled: true
+
+  # Custom format command
+  format:
+    command: npx
+    args: [prettier, --write, .]
+    timeout: 30s
+    enabled: false
+
+  # Custom security audit
+  audit:
+    command: npm
+    args: [audit, --audit-level, moderate]
+    timeout: 60s
+    enabled: true
+```
+
+### Configuration Options
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `defaultTimeout` | Default timeout for all commands | `30s` |
+| `maxParallel` | Maximum parallel command execution | `3` |
+| `commands.*.command` | Base command to execute | Required |
+| `commands.*.args` | Command arguments array | `[]` |
+| `commands.*.timeout` | Command-specific timeout | Uses `defaultTimeout` |
+| `commands.*.enabled` | Whether to run this command | `true` |
+
+### Environment-Specific Configs
+
+<details>
+<summary>🌍 Multi-Environment Setup</summary>
+
+#### Development Configuration
+```yaml
+# .kwatch/kwatch.yaml (development)
+defaultTimeout: 30s
+maxParallel: 3
+commands:
+  typescript:
+    command: npx
+    args: [tsc, --noEmit, --incremental]
+    timeout: 30s
+    enabled: true
+  lint:
+    command: npx
+    args: [eslint, ., --ext, .ts,.tsx,.js,.jsx, --fix]
+    timeout: 30s
+    enabled: true
+  test:
+    command: npm
+    args: [run, test:watch]
+    timeout: 300s
+    enabled: true
+```
+
+#### Production Configuration
+```yaml
+# .kwatch/kwatch.yaml (production)
+defaultTimeout: 60s
+maxParallel: 1
+commands:
+  typescript:
+    command: npx
+    args: [tsc, --noEmit, --strict]
+    timeout: 120s
+    enabled: true
+  lint:
+    command: npx
+    args: [eslint, ., --ext, .ts,.tsx,.js,.jsx, --max-warnings, "0"]
+    timeout: 60s
+    enabled: true
+  test:
+    command: npm
+    args: [run, test:ci]
+    timeout: 300s
+    enabled: true
+  build:
+    command: npm
+    args: [run, build]
+    timeout: 300s
+    enabled: true
+```
+
+</details>
+
 ## Installation
 
 ### Quick Install (Global)
@@ -387,6 +557,22 @@ Get history of executed commands.
       "description": "Development project monitoring",
       "env": {
         "NODE_ENV": "development"
+      }
+    }
+  }
+}
+```
+
+#### With Custom Configuration
+```json
+{
+  "mcpServers": {
+    "kwatch-custom": {
+      "command": "kwatch",
+      "args": ["mcp", "/path/to/project"],
+      "description": "Custom configured project monitoring",
+      "env": {
+        "KWATCH_CONFIG": "/path/to/custom/.kwatch/kwatch.yaml"
       }
     }
   }
@@ -604,6 +790,18 @@ curl -s http://localhost:3737/health
 ./build/kwatch history
 ```
 
+### 5. Configuration Management
+```bash
+# Initialize configuration
+./build/kwatch config init
+
+# View current configuration
+./build/kwatch config show
+
+# Edit configuration interactively
+./build/kwatch config edit
+```
+
 </details>
 
 <details>
@@ -752,6 +950,12 @@ ls package.json tsconfig.json
 # Check if commands exist
 npm run lint --dry-run
 npm run test --dry-run
+
+# Initialize configuration if missing
+kwatch config init
+
+# Check current configuration
+kwatch config show
 ```
 
 ### API Not Responding
@@ -775,8 +979,39 @@ curl -s http://localhost:3737/health
 # Create config file
 ./build/kwatch config init
 
-# Edit configuration
+# Edit configuration interactively
 ./build/kwatch config edit
+
+# View effective configuration
+./build/kwatch config show
+```
+
+### Advanced Configuration Examples
+```yaml
+# High-performance configuration
+defaultTimeout: 15s
+maxParallel: 6
+commands:
+  typescript:
+    command: npx
+    args: [tsc, --noEmit, --incremental]
+    timeout: 20s
+    enabled: true
+  lint:
+    command: npx
+    args: [eslint, ., --cache, --ext, .ts,.tsx,.js,.jsx]
+    timeout: 15s
+    enabled: true
+  test:
+    command: npm
+    args: [run, test, --passWithNoTests]
+    timeout: 120s
+    enabled: true
+  build:
+    command: npm
+    args: [run, build]
+    timeout: 180s
+    enabled: false  # Only enable when needed
 ```
 
 ### Multiple Projects
@@ -811,9 +1046,12 @@ RUN kwatch daemon --host 0.0.0.0 --port 3737 &
 
 ## 📚 Resources
 
-- [Demo HTML Page](./demo.html) - Interactive web demo
-- [Demo Script](./demo-script.sh) - Automated demo runner
-- [Screenshots](./screenshots/) - Terminal outputs and examples
+- **[Configuration Examples](./examples/)** - Ready-to-use configuration files
+  - [Basic Configuration](./examples/kwatch.yaml) - Complete example with documentation
+  - [Development Setup](./examples/development.yaml) - Fast feedback for development
+  - [Production Setup](./examples/production.yaml) - Strict validation for production
+- **[Screenshots](./screenshots/)** - Visual documentation and examples
+- **[MCP Configuration](./config/)** - Model Context Protocol setup files
 
 ## License
 
