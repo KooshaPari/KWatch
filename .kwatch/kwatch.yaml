@@ -2,17 +2,20 @@ defaultTimeout: 30s
 maxParallel: 3
 commands:
   lint:
-    command: echo
+    command: npx
     args:
-    - "Custom lint command executed successfully"
-    timeout: 5s
+    - eslint
+    - .
+    - --ext
+    - .ts,.tsx,.js,.jsx
+    timeout: 30s
     enabled: true
   test:
     command: npm
     args:
     - test
     timeout: 60s
-    enabled: false
+    enabled: true
   typescript:
     command: npx
     args:
