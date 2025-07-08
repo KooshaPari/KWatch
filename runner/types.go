@@ -36,6 +36,7 @@ const (
 	TypescriptCheck CommandType = "typescript"
 	LintCheck       CommandType = "lint"
 	TestRunner      CommandType = "test"
+	SecurityCheck   CommandType = "security"
 )
 
 // Command represents a command to be executed
@@ -107,6 +108,8 @@ func getCommandType(command string) CommandType {
 		return LintCheck
 	case strings.Contains(command, "test"):
 		return TestRunner
+	case strings.Contains(command, "security"):
+		return SecurityCheck
 	default:
 		return CommandType(command)
 	}

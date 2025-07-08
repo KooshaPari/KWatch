@@ -110,3 +110,23 @@ tmp/
 screenshots/videos/
 screenshots/palette*.png
 *.webm
+
+# Security scanner files
+.security-findings.json
+security-config.json
+
+# Environment files with secrets
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.*.local
+
+# Security and sensitive files
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+secrets.json
+config/secrets.json

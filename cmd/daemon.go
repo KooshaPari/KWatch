@@ -15,6 +15,7 @@ import (
 	"github.com/spf13/cobra"
 	"kwatch/config"
 	"kwatch/runner"
+	"kwatch/server"
 )
 
 var (
@@ -47,6 +48,11 @@ The daemon runs in the background and provides endpoints for:
 - GET /status/compact - Get compact one-line status
 - POST /run - Force a manual run of all commands
 - GET /history - Get command execution history
+- POST /security/scan - Run security scan
+- GET /security/findings - List security findings
+- GET /security/stats - Security statistics
+- POST /security/resolve/{id} - Mark finding as resolved
+- POST /security/ignore/{id} - Mark finding as ignored
 
 Examples:
   kwatch daemon                        # Start daemon on port 3737
@@ -149,18 +155,27 @@ func (d *daemonServer) setupRoutes() *http.ServeMux {
 
 	// Status endpoint (JSON)
 	mux.HandleFunc("/status", d.handleStatus)
-	
+
 	// Status endpoint (compact)
 	mux.HandleFunc("/status/compact", d.handleStatusCompact)
-	
+
 	// Manual run endpoint
 	mux.HandleFunc("/run", d.handleRun)
-	
+
 	// History endpoint
 	mux.HandleFunc("/history", d.handleHistory)
-	
+
 	// Health check endpoint
 	mux.HandleFunc("/health", d.handleHealth)
+
+	// Security endpoints
+	securityAPI := server.NewSecurityAPI(".security-findings.json")
+	mux.HandleFunc("/security/scan", securityAPI.HandleSecurityScan)
+	mux.HandleFunc("/security/findings", securityAPI.HandleSecurityFindings)
+	mux.HandleFunc("/security/findings/", securityAPI.HandleSecurityFinding)
+	mux.HandleFunc("/security/stats", securityAPI.HandleSecurityStats)
+	mux.HandleFunc("/security/resolve/", securityAPI.HandleSecurityResolve)
+	mux.HandleFunc("/security/ignore/", securityAPI.HandleSecurityIgnore)
 
 	return mux
 }
