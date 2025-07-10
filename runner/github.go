@@ -49,11 +49,19 @@ func detectGitHubConfig(workingDir string) (GitHubConfig, error) {
 		}
 	}
 	
-	// Try to get token from environment
+	// Try to get token from environment first
 	if token := os.Getenv("GITHUB_TOKEN"); token != "" {
 		config.Token = token
 	} else if token := os.Getenv("GH_TOKEN"); token != "" {
 		config.Token = token
+	} else {
+		// Try to get token from secure store
+		store := NewSecureTokenStore()
+		if store.HasStoredToken() {
+			if token, err := store.GetToken(); err == nil {
+				config.Token = token
+			}
+		}
 	}
 	
 	// Set default branch if not specified

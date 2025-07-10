@@ -1,43 +1,73 @@
 package cmd
 
 import (
-	"bufio"
+	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
-	"syscall"
 
 	"github.com/spf13/cobra"
-	"golang.org/x/term"
+	"kwatch/runner"
 )
 
 var (
 	authStatus bool
+	authClear  bool
+	authInit   bool
+	authJSON   bool
 )
 
 var authCmd = &cobra.Command{
 	Use:   "auth",
-	Short: "Configure GitHub authentication",
-	Long: `Configure GitHub authentication for monitoring GitHub Actions.
+	Short: "Secure GitHub authentication management",
+	Long: `Secure GitHub authentication management with encrypted token storage.
 
-This command helps you set up a GitHub personal access token for monitoring
-GitHub Actions workflows. The token will be stored securely and used for
-API requests to GitHub.
+This command provides a secure way to store and manage your GitHub personal access token.
+The token is encrypted using AES-256-GCM and stored locally, eliminating the need to 
+store tokens in environment variables or shell profiles.
 
-You'll need a GitHub personal access token with these scopes:
-- repo (for private repositories)
-- actions:read (for GitHub Actions)
+Security Features:
+• AES-256-GCM encryption
+• System-specific encryption keys
+• Secure file permissions (600)
+• No plaintext storage
+• Automatic token detection
 
-Get your token at: https://github.com/settings/tokens
+Token Requirements:
+• GitHub personal access token (classic or fine-grained)
+• Scopes: repo (for private repos) + actions:read (for GitHub Actions)
+• Get your token at: https://github.com/settings/tokens
 
 Examples:
-  kwatch auth           # Interactive setup
-  kwatch auth --status  # Check current authentication status`,
+  kwatch auth --init           # Securely setup new token
+  kwatch auth --status         # Check authentication status
+  kwatch auth --clear          # Remove stored token
+  kwatch auth --status --json  # JSON status output`,
 	Run: func(cmd *cobra.Command, args []string) {
-		if authStatus {
-			checkGitHubAuthStatus()
-		} else {
-			setupGitHubAuth()
+		store := runner.NewSecureTokenStore()
+		
+		switch {
+		case authInit:
+			if err := store.InitSecureToken(); err != nil {
+				fmt.Fprintf(os.Stderr, "❌ Failed to initialize token: %v\n", err)
+				os.Exit(1)
+			}
+		case authClear:
+			clearStoredToken(store)
+		case authStatus:
+			showAuthStatus(store)
+		default:
+			// Default behavior - init if no token exists, otherwise show status
+			if store.HasStoredToken() {
+				showAuthStatus(store)
+			} else {
+				fmt.Println("🔐 No secure token found. Initializing setup...")
+				fmt.Println()
+				if err := store.InitSecureToken(); err != nil {
+					fmt.Fprintf(os.Stderr, "❌ Failed to initialize token: %v\n", err)
+					os.Exit(1)
+				}
+			}
 		}
 	},
 }
@@ -45,175 +75,195 @@ Examples:
 func init() {
 	rootCmd.AddCommand(authCmd)
 	authCmd.Flags().BoolVarP(&authStatus, "status", "s", false, "Check current authentication status")
+	authCmd.Flags().BoolVarP(&authClear, "clear", "c", false, "Remove stored encrypted token")
+	authCmd.Flags().BoolVarP(&authInit, "init", "i", false, "Initialize new encrypted token (force)")
+	authCmd.Flags().BoolVarP(&authJSON, "json", "j", false, "Output status in JSON format")
 }
 
-func setupGitHubAuth() {
-	fmt.Println("🔐 GitHub Authentication Setup")
-	fmt.Println("===============================")
-	fmt.Println()
-	
-	// Check if token already exists
-	if token := os.Getenv("GITHUB_TOKEN"); token != "" {
-		fmt.Println("✅ GitHub token is already configured via GITHUB_TOKEN environment variable")
-		fmt.Printf("Token: %s...%s\n", token[:8], token[len(token)-4:])
-		fmt.Println()
-		
-		reader := bufio.NewReader(os.Stdin)
-		fmt.Print("Do you want to update it? (y/N): ")
-		response, _ := reader.ReadString('\n')
-		response = strings.TrimSpace(strings.ToLower(response))
-		
-		if response != "y" && response != "yes" {
-			fmt.Println("Keeping existing token.")
-			return
-		}
+func showAuthStatus(store *runner.SecureTokenStore) {
+	if authJSON {
+		showAuthStatusJSON(store)
+		return
 	}
 	
-	fmt.Println("To get a GitHub token:")
-	fmt.Println("1. Go to https://github.com/settings/tokens")
-	fmt.Println("2. Click 'Generate new token (classic)'")
-	fmt.Println("3. Select these scopes:")
-	fmt.Println("   - repo (for private repositories)")
-	fmt.Println("   - actions:read (for GitHub Actions)")
-	fmt.Println("4. Copy the generated token")
-	fmt.Println()
-	
-	// Prompt for token
-	fmt.Print("Enter your GitHub token (input will be hidden): ")
-	tokenBytes, err := term.ReadPassword(int(syscall.Stdin))
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error reading token: %v\n", err)
-		os.Exit(1)
-	}
-	
-	token := strings.TrimSpace(string(tokenBytes))
-	fmt.Println() // New line after hidden input
-	
-	if token == "" {
-		fmt.Println("❌ No token provided. Exiting.")
-		os.Exit(1)
-	}
-	
-	// Validate token format (basic check)
-	if !strings.HasPrefix(token, "ghp_") && !strings.HasPrefix(token, "github_pat_") {
-		fmt.Println("⚠️  Warning: Token doesn't look like a GitHub personal access token")
-		fmt.Println("   Expected format: ghp_... or github_pat_...")
-		fmt.Println()
-		
-		reader := bufio.NewReader(os.Stdin)
-		fmt.Print("Continue anyway? (y/N): ")
-		response, _ := reader.ReadString('\n')
-		response = strings.TrimSpace(strings.ToLower(response))
-		
-		if response != "y" && response != "yes" {
-			fmt.Println("❌ Cancelled.")
-			os.Exit(1)
-		}
-	}
-	
-	// Show setup instructions
-	showSetupInstructions(token)
-}
-
-func showSetupInstructions(token string) {
-	fmt.Println()
-	fmt.Println("🎯 Setup Instructions")
-	fmt.Println("=====================")
-	fmt.Println()
-	
-	// Detect shell
-	shell := os.Getenv("SHELL")
-	configFile := ""
-	
-	switch {
-	case strings.Contains(shell, "zsh"):
-		configFile = "~/.zshrc"
-	case strings.Contains(shell, "bash"):
-		configFile = "~/.bashrc"
-	case strings.Contains(shell, "fish"):
-		configFile = "~/.config/fish/config.fish"
-	default:
-		configFile = "~/.profile"
-	}
-	
-	fmt.Printf("Add this line to your %s:\n", configFile)
-	fmt.Println()
-	
-	if strings.Contains(shell, "fish") {
-		fmt.Printf("set -Ux GITHUB_TOKEN \"%s\"\n", token)
-	} else {
-		fmt.Printf("export GITHUB_TOKEN=\"%s\"\n", token)
-	}
-	
-	fmt.Println()
-	fmt.Println("Then reload your shell:")
-	
-	if strings.Contains(shell, "fish") {
-		fmt.Println("exec fish")
-	} else {
-		fmt.Printf("source %s\n", configFile)
-	}
-	
-	fmt.Println()
-	fmt.Println("Or set it temporarily for this session:")
-	fmt.Printf("export GITHUB_TOKEN=\"%s\"\n", token)
-	fmt.Println()
-	
-	fmt.Println("✅ Once set, kwatch will automatically detect GitHub repositories")
-	fmt.Println("   and monitor GitHub Actions in the TUI and master view.")
-	fmt.Println()
-	fmt.Println("Test it with: kwatch run --command github")
-}
-
-func checkGitHubAuthStatus() {
 	fmt.Println("🔍 GitHub Authentication Status")
 	fmt.Println("===============================")
 	fmt.Println()
 	
-	// Check environment variables
-	var token string
-	var tokenSource string
+	// Check environment variables first
+	var envToken string
+	var envSource string
 	
 	if t := os.Getenv("GITHUB_TOKEN"); t != "" {
-		token = t
-		tokenSource = "GITHUB_TOKEN"
+		envToken = t
+		envSource = "GITHUB_TOKEN"
 	} else if t := os.Getenv("GH_TOKEN"); t != "" {
-		token = t
-		tokenSource = "GH_TOKEN"
+		envToken = t
+		envSource = "GH_TOKEN"
 	}
 	
-	if token == "" {
-		fmt.Println("❌ No GitHub token found")
-		fmt.Println("   Checked environment variables: GITHUB_TOKEN, GH_TOKEN")
+	if envToken != "" {
+		fmt.Printf("✅ Environment token found via %s\n", envSource)
+		if len(envToken) >= 12 {
+			fmt.Printf("   Token: %s...%s\n", envToken[:8], envToken[len(envToken)-4:])
+		}
+		fmt.Println("   📝 Note: Environment tokens take precedence over stored tokens")
 		fmt.Println()
-		fmt.Println("💡 Run 'kwatch auth' to set up authentication")
+	}
+	
+	// Check stored token
+	if store.HasStoredToken() {
+		fmt.Println("🔒 Encrypted Token Store")
+		
+		status, err := store.GetTokenStatus()
+		if err != nil {
+			fmt.Printf("❌ Error getting token status: %v\n", err)
+			return
+		}
+		
+		if valid, ok := status["valid"].(bool); ok && valid {
+			fmt.Println("✅ Encrypted token found and valid")
+			
+			if preview, ok := status["token_preview"].(string); ok {
+				fmt.Printf("   Token: %s\n", preview)
+			}
+			
+			if tokenType, ok := status["token_type"].(string); ok {
+				fmt.Printf("   Type: %s\n", strings.ReplaceAll(tokenType, "_", " "))
+			}
+			
+			if created, ok := status["created"]; ok {
+				fmt.Printf("   Created: %v\n", created)
+			}
+			
+			if perms, ok := status["permissions"].(string); ok {
+				fmt.Printf("   Permissions: %s\n", perms)
+			}
+		} else {
+			fmt.Println("❌ Encrypted token found but invalid")
+			if errStr, ok := status["decrypt_error"].(string); ok {
+				fmt.Printf("   Error: %s\n", errStr)
+			}
+			fmt.Println("   💡 Run 'kwatch auth --clear && kwatch auth --init' to reset")
+		}
+		
+		if configDir, ok := status["config_dir"].(string); ok {
+			fmt.Printf("   📁 Storage: %s\n", configDir)
+		}
+		fmt.Println()
+	} else {
+		fmt.Println("❌ No encrypted token stored")
+		fmt.Println("   💡 Run 'kwatch auth --init' to setup secure token storage")
+		fmt.Println()
+	}
+	
+	// Check repository status
+	checkRepositoryStatus()
+	
+	// Show usage examples
+	fmt.Println("🧪 Test Commands:")
+	fmt.Println("   kwatch run --command github    # Test GitHub Actions monitoring")
+	fmt.Println("   kwatch master                   # Master view with GitHub Actions")
+	fmt.Println()
+	
+	// Show management commands
+	fmt.Println("🔧 Management Commands:")
+	fmt.Println("   kwatch auth --init              # Setup new token")
+	fmt.Println("   kwatch auth --clear             # Remove stored token")
+	fmt.Println("   kwatch auth --status --json     # JSON status output")
+}
+
+func showAuthStatusJSON(store *runner.SecureTokenStore) {
+	result := make(map[string]interface{})
+	
+	// Environment token info
+	envInfo := make(map[string]interface{})
+	if token := os.Getenv("GITHUB_TOKEN"); token != "" {
+		envInfo["found"] = true
+		envInfo["source"] = "GITHUB_TOKEN"
+		if len(token) >= 12 {
+			envInfo["preview"] = token[:8] + "..." + token[len(token)-4:]
+		}
+	} else if token := os.Getenv("GH_TOKEN"); token != "" {
+		envInfo["found"] = true
+		envInfo["source"] = "GH_TOKEN"
+		if len(token) >= 12 {
+			envInfo["preview"] = token[:8] + "..." + token[len(token)-4:]
+		}
+	} else {
+		envInfo["found"] = false
+	}
+	result["environment"] = envInfo
+	
+	// Stored token info
+	if status, err := store.GetTokenStatus(); err == nil {
+		result["stored"] = status
+	} else {
+		result["stored"] = map[string]interface{}{
+			"error": err.Error(),
+		}
+	}
+	
+	// Repository info
+	wd, _ := os.Getwd()
+	repoInfo := map[string]interface{}{
+		"current_directory": wd,
+		"is_git_repo":       isGitRepository(),
+		"has_github_remote": hasGitHubRemote(),
+	}
+	result["repository"] = repoInfo
+	
+	jsonBytes, err := json.MarshalIndent(result, "", "  ")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error formatting JSON: %v\n", err)
+		os.Exit(1)
+	}
+	
+	fmt.Println(string(jsonBytes))
+}
+
+func clearStoredToken(store *runner.SecureTokenStore) {
+	if !store.HasStoredToken() {
+		fmt.Println("❌ No stored token to clear")
 		return
 	}
 	
-	// Show token info (masked)
-	fmt.Printf("✅ GitHub token found via %s\n", tokenSource)
-	if len(token) >= 12 {
-		fmt.Printf("   Token: %s...%s\n", token[:8], token[len(token)-4:])
-	} else {
-		fmt.Printf("   Token: %s\n", strings.Repeat("*", len(token)))
+	fmt.Println("🗑️  Clear Stored Token")
+	fmt.Println("====================")
+	fmt.Println()
+	fmt.Println("⚠️  This will permanently delete your encrypted GitHub token.")
+	fmt.Print("Are you sure? (y/N): ")
+	
+	var response string
+	fmt.Scanln(&response)
+	
+	if response != "y" && response != "Y" && response != "yes" {
+		fmt.Println("❌ Cancelled.")
+		return
 	}
 	
-	// Check if we're in a git repository
-	fmt.Println()
-	wd, _ := os.Getwd()
-	fmt.Printf("📂 Current directory: %s\n", wd)
+	if err := store.ClearStoredToken(); err != nil {
+		fmt.Fprintf(os.Stderr, "❌ Failed to clear token: %v\n", err)
+		os.Exit(1)
+	}
 	
-	// Try to detect GitHub repo
-	if _, err := os.Stat(".git"); err == nil {
+	fmt.Println("✅ Encrypted token cleared successfully")
+	fmt.Println("💡 Run 'kwatch auth --init' to setup a new token")
+}
+
+func checkRepositoryStatus() {
+	wd, _ := os.Getwd()
+	fmt.Printf("📂 Repository Status (Current: %s)\n", wd)
+	
+	if isGitRepository() {
 		fmt.Println("✅ Git repository detected")
 		
-		// Try to parse git config for GitHub remote
-		if configData, err := os.ReadFile(".git/config"); err == nil {
-			content := string(configData)
-			if strings.Contains(content, "github.com") {
-				fmt.Println("✅ GitHub remote detected")
-				
-				// Try to extract repo info
+		if hasGitHubRemote() {
+			fmt.Println("✅ GitHub remote detected")
+			
+			// Try to show remote URL
+			if configData, err := os.ReadFile(".git/config"); err == nil {
+				content := string(configData)
 				lines := strings.Split(content, "\n")
 				for i, line := range lines {
 					if strings.Contains(line, `[remote "origin"]`) && i+1 < len(lines) {
@@ -225,16 +275,32 @@ func checkGitHubAuthStatus() {
 						break
 					}
 				}
-			} else {
-				fmt.Println("⚠️  No GitHub remote found in git config")
 			}
+		} else {
+			fmt.Println("⚠️  No GitHub remote found")
+			fmt.Println("   💡 This directory won't support GitHub Actions monitoring")
 		}
 	} else {
 		fmt.Println("⚠️  Not a git repository")
+		fmt.Println("   💡 GitHub Actions monitoring only works in git repositories")
+	}
+	fmt.Println()
+}
+
+func isGitRepository() bool {
+	_, err := os.Stat(".git")
+	return err == nil
+}
+
+func hasGitHubRemote() bool {
+	if !isGitRepository() {
+		return false
 	}
 	
-	fmt.Println()
-	fmt.Println("🧪 Test GitHub Actions monitoring:")
-	fmt.Println("   kwatch run --command github")
-	fmt.Println("   kwatch master")
+	configData, err := os.ReadFile(".git/config")
+	if err != nil {
+		return false
+	}
+	
+	return strings.Contains(string(configData), "github.com")
 }
