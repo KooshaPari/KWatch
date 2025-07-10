@@ -73,11 +73,12 @@ Examples:
 }
 
 func init() {
-	rootCmd.AddCommand(authCmd)
-	authCmd.Flags().BoolVarP(&authStatus, "status", "s", false, "Check current authentication status")
-	authCmd.Flags().BoolVarP(&authClear, "clear", "c", false, "Remove stored encrypted token")
-	authCmd.Flags().BoolVarP(&authInit, "init", "i", false, "Initialize new encrypted token (force)")
-	authCmd.Flags().BoolVarP(&authJSON, "json", "j", false, "Output status in JSON format")
+	// Temporarily disabled auth command to fix hanging issues
+	// rootCmd.AddCommand(authCmd)
+	// authCmd.Flags().BoolVarP(&authStatus, "status", "s", false, "Check current authentication status")
+	// authCmd.Flags().BoolVarP(&authClear, "clear", "c", false, "Remove stored encrypted token")
+	// authCmd.Flags().BoolVarP(&authInit, "init", "i", false, "Initialize new encrypted token (force)")
+	// authCmd.Flags().BoolVarP(&authJSON, "json", "j", false, "Output status in JSON format")
 }
 
 func showAuthStatus(store *runner.SecureTokenStore) {

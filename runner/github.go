@@ -54,22 +54,24 @@ func detectGitHubConfig(workingDir string) (GitHubConfig, error) {
 		config.Token = token
 	} else if token := os.Getenv("GH_TOKEN"); token != "" {
 		config.Token = token
-	} else {
-		// Try to get token from secure store (with error recovery)
-		func() {
-			defer func() {
-				if r := recover(); r != nil {
-					// Silently recover from any secure store panics
-				}
-			}()
-			store := NewSecureTokenStore()
-			if store != nil && store.HasStoredToken() {
-				if token, err := store.GetToken(); err == nil && token != "" {
-					config.Token = token
-				}
-			}
-		}()
 	}
+	// Temporarily disabled secure store to fix hanging issue
+	// } else {
+	// 	// Try to get token from secure store (with error recovery)
+	// 	func() {
+	// 		defer func() {
+	// 			if r := recover(); r != nil {
+	// 				// Silently recover from any secure store panics
+	// 			}()
+	// 		}()
+	// 		store := NewSecureTokenStore()
+	// 		if store != nil && store.HasStoredToken() {
+	// 			if token, err := store.GetToken(); err == nil && token != "" {
+	// 				config.Token = token
+	// 			}
+	// 		}
+	// 	}()
+	// }
 	
 	// Set default branch if not specified
 	if config.Branch == "" {
