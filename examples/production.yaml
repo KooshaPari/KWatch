@@ -1,0 +1,55 @@
+# Production Environment Configuration
+# Strict settings for production deployments
+
+defaultTimeout: 60s
+maxParallel: 2
+
+commands:
+  typescript:
+    command: npx
+    args:
+      - tsc
+      - --noEmit
+      - --strict
+    timeout: 120s
+    enabled: true
+
+  lint:
+    command: npx
+    args:
+      - eslint
+      - .
+      - --ext
+      - .ts,.tsx,.js,.jsx
+      - --max-warnings
+      - "0"
+    timeout: 60s
+    enabled: true
+
+  test:
+    command: npm
+    args:
+      - run
+      - test
+      - --ci
+      - --coverage
+      - --watchAll=false
+    timeout: 300s
+    enabled: true
+
+  build:
+    command: npm
+    args:
+      - run
+      - build
+    timeout: 300s
+    enabled: true
+
+  audit:
+    command: npm
+    args:
+      - audit
+      - --audit-level
+      - moderate
+    timeout: 60s
+    enabled: true
