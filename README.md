@@ -76,6 +76,8 @@ kwatch run --command github
 
 ## 📋 Usage
 
+![KWatch Basic Usage Demo](demos/kwatch-basic-usage.gif)
+
 ### Basic Commands
 
 ```bash
@@ -99,6 +101,8 @@ kwatch daemon --port 3737
 ```
 
 ### GitHub Actions Commands
+
+![KWatch GitHub Actions Integration](demos/kwatch-github-actions.gif)
 
 ```bash
 # Check GitHub Actions status
@@ -125,6 +129,8 @@ kwatch master ~/projects/app1 ~/projects/app2 ~/projects/api
 # Auto-discover projects with .kwatch configurations
 kwatch master ~/projects
 ```
+
+![Master KWatch Interface Demo](demos/kwatch-master-interface.gif)
 
 **Output:**
 ```
