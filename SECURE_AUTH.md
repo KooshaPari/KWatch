@@ -100,6 +100,18 @@ kwatch master                    # GitHub Actions in matrix view
 
 ## 🚨 **Troubleshooting**
 
+### **Binary Auto-Closes or "Killed" on macOS**
+If `kwatch` works locally (`./kwatch`) but fails when installed (`kwatch`):
+```bash
+# Remove macOS quarantine attributes
+xattr -c ~/bin/kwatch
+
+# Or reinstall and clear attributes
+rm ~/bin/kwatch
+cp ./kwatch ~/bin/kwatch
+xattr -c ~/bin/kwatch
+```
+
 ### **Token Not Working**
 ```bash
 # Check status and validate token
