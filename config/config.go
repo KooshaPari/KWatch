@@ -48,6 +48,12 @@ func DefaultConfig() *Config {
 				Timeout: "60s",
 				Enabled: true,
 			},
+			"github_actions": {
+				Command: "github_actions",
+				Args:    []string{},
+				Timeout: "30s",
+				Enabled: false, // Disabled by default, will be auto-enabled if GitHub repo detected
+			},
 		},
 	}
 }

@@ -20,6 +20,11 @@ type CommandResult struct {
 	TotalTests   int `json:"total_tests,omitempty"`
 	PassedTests  int `json:"passed_tests,omitempty"`
 	FailedTests  int `json:"failed_tests,omitempty"`
+	// GitHub Actions specific fields
+	WorkflowName    string              `json:"workflow_name,omitempty"`
+	RunID          int64               `json:"run_id,omitempty"`
+	WorkflowStatus string              `json:"workflow_status,omitempty"`
+	JobResults     []GitHubActionJob   `json:"job_results,omitempty"`
 }
 
 // RunResult represents the result of running multiple commands
@@ -36,6 +41,7 @@ const (
 	TypescriptCheck CommandType = "typescript"
 	LintCheck       CommandType = "lint"
 	TestRunner      CommandType = "test"
+	GitHubActions   CommandType = "github_actions"
 )
 
 // Command represents a command to be executed
@@ -107,7 +113,38 @@ func getCommandType(command string) CommandType {
 		return LintCheck
 	case strings.Contains(command, "test"):
 		return TestRunner
+	case strings.Contains(command, "github"):
+		return GitHubActions
 	default:
 		return CommandType(command)
 	}
+}
+
+// GitHubActionJob represents a single job in a GitHub Actions workflow
+type GitHubActionJob struct {
+	Name       string `json:"name"`
+	Status     string `json:"status"`
+	Conclusion string `json:"conclusion"`
+	StartedAt  string `json:"started_at"`
+	CompletedAt string `json:"completed_at"`
+}
+
+// GitHubConfig represents GitHub API configuration
+type GitHubConfig struct {
+	Owner      string `json:"owner"`
+	Repo       string `json:"repo"`
+	Token      string `json:"token,omitempty"`
+	Branch     string `json:"branch,omitempty"`
+}
+
+// WorkflowRun represents a GitHub Actions workflow run
+type WorkflowRun struct {
+	ID         int64  `json:"id"`
+	Name       string `json:"name"`
+	Status     string `json:"status"`
+	Conclusion string `json:"conclusion"`
+	CreatedAt  string `json:"created_at"`
+	UpdatedAt  string `json:"updated_at"`
+	HeadBranch string `json:"head_branch"`
+	HeadSHA    string `json:"head_sha"`
 }

@@ -98,6 +98,7 @@ Examples:
 				runner.TypescriptCheck: "tsc",
 				runner.LintCheck:       "lint",
 				runner.TestRunner:      "test",
+				runner.GitHubActions:   "github",
 			}
 
 			for cmdType, result := range results {

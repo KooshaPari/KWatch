@@ -169,12 +169,13 @@ func (m *Model) AddLog(logType LogType, message, file, action string) {
 // GetCurrentCommandStatuses returns the current status of all commands
 func (m *Model) GetCurrentCommandStatuses() []CommandStatus {
 	latest := m.history.GetLatest()
-	statuses := make([]CommandStatus, 0, 3)
+	statuses := make([]CommandStatus, 0, 4)
 	
 	commandTypes := []runner.CommandType{
 		runner.TypescriptCheck,
 		runner.LintCheck,
 		runner.TestRunner,
+		runner.GitHubActions,
 	}
 	
 	for _, cmdType := range commandTypes {
@@ -267,6 +268,8 @@ func getCommandType(command string) runner.CommandType {
 		return runner.LintCheck
 	case command == "test":
 		return runner.TestRunner
+	case command == "github_actions":
+		return runner.GitHubActions
 	default:
 		return runner.CommandType(command)
 	}
@@ -291,7 +294,7 @@ func (m *Model) NavigateDown() {
 func (m *Model) getMaxRows() int {
 	switch m.viewMode {
 	case ViewMain:
-		return 3 // Three command types
+		return 4 // Four command types (including GitHub Actions)
 	case ViewHistory:
 		return len(m.GetHistoryForView())
 	case ViewLogs:

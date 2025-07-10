@@ -8,6 +8,7 @@ require (
 	github.com/fsnotify/fsnotify v1.9.0
 	github.com/spf13/cobra v1.8.0
 	golang.org/x/term v0.16.0
+	gopkg.in/yaml.v2 v2.4.0
 )
 
 require (
@@ -27,5 +28,4 @@ require (
 	golang.org/x/sync v0.6.0 // indirect
 	golang.org/x/sys v0.20.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
-	gopkg.in/yaml.v2 v2.4.0 // indirect
 )

@@ -13,25 +13,40 @@ import (
 
 // Runner manages command execution and history
 type Runner struct {
-	config     RunnerConfig
-	history    *ResultHistory
-	parser     *Parser
-	mutex      sync.RWMutex
+	config       RunnerConfig
+	history      *ResultHistory
+	parser       *Parser
+	mutex        sync.RWMutex
 	kwatchConfig *config.Config
+	githubClient *GitHubClient
 }
 
 // NewRunner creates a new runner instance
 func NewRunner(config RunnerConfig, kwatchConfig *config.Config) *Runner {
-	return &Runner{
+	runner := &Runner{
 		config:       config,
 		history:      &ResultHistory{},
 		parser:       NewParser(),
 		kwatchConfig: kwatchConfig,
 	}
+	
+	// Initialize GitHub client if possible
+	if config.WorkingDir != "" {
+		if githubClient, err := GitHubFromRepository(config.WorkingDir); err == nil {
+			runner.githubClient = githubClient
+		}
+	}
+	
+	return runner
 }
 
 // RunCommand executes a single command and returns the result
 func (r *Runner) RunCommand(ctx context.Context, command Command) CommandResult {
+	// Handle GitHub Actions commands differently
+	if command.Type == GitHubActions {
+		return r.runGitHubCommand(ctx, command)
+	}
+	
 	start := time.Now()
 	result := CommandResult{
 		Command:   command.Command,
@@ -85,6 +100,28 @@ func (r *Runner) RunCommand(ctx context.Context, command Command) CommandResult 
 	// Add to history
 	r.history.Add(result)
 
+	return result
+}
+
+// runGitHubCommand handles GitHub Actions command execution
+func (r *Runner) runGitHubCommand(ctx context.Context, command Command) CommandResult {
+	if r.githubClient == nil {
+		return CommandResult{
+			Command:   command.Command,
+			Timestamp: time.Now(),
+			Error:     "GitHub client not initialized - no GitHub repository detected or token missing",
+			Duration:  0,
+		}
+	}
+	
+	result, err := r.githubClient.CheckWorkflowStatus(ctx)
+	if err != nil {
+		result.Error = err.Error()
+	}
+	
+	// Add to history
+	r.history.Add(result)
+	
 	return result
 }
 
@@ -143,6 +180,8 @@ func (r *Runner) getDefaultCommands() map[CommandType]Command {
 				cmdType = LintCheck
 			case "test":
 				cmdType = TestRunner
+			case "github_actions":
+				cmdType = GitHubActions
 			default:
 				// For custom commands, use the name as the type
 				cmdType = CommandType(name)
@@ -182,6 +221,16 @@ func (r *Runner) getDefaultCommands() map[CommandType]Command {
 		}
 	}
 	
+	// Always add GitHub Actions if client is available
+	if r.githubClient != nil {
+		commands[GitHubActions] = Command{
+			Type:    GitHubActions,
+			Command: "github_actions",
+			Args:    []string{},
+			Timeout: 30 * time.Second,
+		}
+	}
+	
 	return commands
 }
 
@@ -190,12 +239,13 @@ func (r *Runner) getDefaultCommands() map[CommandType]Command {
 func FormatCompactStatus(results map[CommandType]CommandResult) string {
 	var parts []string
 	
-	// Order: TSC, LINT, TEST
-	types := []CommandType{TypescriptCheck, LintCheck, TestRunner}
+	// Order: TSC, LINT, TEST, GITHUB
+	types := []CommandType{TypescriptCheck, LintCheck, TestRunner, GitHubActions}
 	labels := map[CommandType]string{
 		TypescriptCheck: "TSC",
 		LintCheck:       "LINT",
 		TestRunner:      "TEST",
+		GitHubActions:   "GH",
 	}
 	
 	for _, cmdType := range types {
@@ -211,6 +261,19 @@ func FormatCompactStatus(results map[CommandType]CommandResult) string {
 					parts = append(parts, fmt.Sprintf("%s:%s%d/%d", labels[cmdType], symbol, result.PassedTests, result.TotalTests))
 				} else {
 					parts = append(parts, fmt.Sprintf("%s:%s%d", labels[cmdType], symbol, result.IssueCount))
+				}
+			} else if cmdType == GitHubActions {
+				// For GitHub Actions, show number of failed jobs
+				if len(result.JobResults) > 0 {
+					failedJobs := 0
+					for _, job := range result.JobResults {
+						if job.Conclusion == "failure" || job.Conclusion == "cancelled" || job.Conclusion == "timed_out" {
+							failedJobs++
+						}
+					}
+					parts = append(parts, fmt.Sprintf("%s:%s%d/%d", labels[cmdType], symbol, failedJobs, len(result.JobResults)))
+				} else {
+					parts = append(parts, fmt.Sprintf("%s:%s", labels[cmdType], symbol))
 				}
 			} else if result.IssueCount > 0 && result.FileCount > 0 {
 				parts = append(parts, fmt.Sprintf("%s:%s%d/%d", labels[cmdType], symbol, result.IssueCount, result.FileCount))

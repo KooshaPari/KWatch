@@ -237,6 +237,8 @@ func getCommandTypeLabel(command string) string {
 		return "Lint"
 	case strings.Contains(command, "test"):
 		return "Test"
+	case strings.Contains(command, "github"):
+		return "GitHub Actions"
 	default:
 		return command
 	}

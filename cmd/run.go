@@ -51,13 +51,14 @@ var runCmd = &cobra.Command{
 	Short: "Force manual execution of commands",
 	Long: `Force a manual execution of all configured commands or a specific command.
 
-This command runs the build tools (TypeScript, linting, tests) and reports the results.
+This command runs the build tools (TypeScript, linting, tests, GitHub Actions) and reports the results.
 Use this to trigger execution on demand rather than waiting for file changes.
 
 Examples:
   kwatch run                           # Run all commands
   kwatch run --command tsc             # Run only TypeScript check
   kwatch run --command lint            # Run only linting
+  kwatch run --command github          # Run only GitHub Actions check
   kwatch --dir /path/to/project run    # Run in specific directory (flag)
   kwatch . run                         # Run in current directory
   kwatch run --verbose                 # Show detailed output
@@ -122,7 +123,7 @@ Examples:
 
 func init() {
 	rootCmd.AddCommand(runCmd)
-	runCmd.Flags().StringVarP(&runCommand, "command", "c", "", "Run specific command (tsc, lint, test)")
+	runCmd.Flags().StringVarP(&runCommand, "command", "c", "", "Run specific command (tsc, lint, test, github)")
 	runCmd.Flags().BoolVarP(&runVerbose, "verbose", "v", false, "Show verbose output including command output")
 	runCmd.Flags().StringVarP(&runFormat, "format", "f", "default", "Output format (default, json, compact)")
 }
@@ -160,9 +161,17 @@ func runSpecificCommand(ctx context.Context, r *runner.Runner, cmdType string) m
 			Args:    []string{"test"},
 			Timeout: 60 * time.Second,
 		}
+	case "github", "github_actions", "gh":
+		targetType = runner.GitHubActions
+		cmd = runner.Command{
+			Type:    runner.GitHubActions,
+			Command: "github_actions",
+			Args:    []string{},
+			Timeout: 30 * time.Second,
+		}
 	default:
 		fmt.Fprintf(os.Stderr, "Unknown command type: %s\n", cmdType)
-		fmt.Fprintf(os.Stderr, "Available commands: tsc, lint, test\n")
+		fmt.Fprintf(os.Stderr, "Available commands: tsc, lint, test, github\n")
 		os.Exit(1)
 	}
 
@@ -190,6 +199,7 @@ func outputRunJSON(directory string, results map[runner.CommandType]runner.Comma
 		runner.TypescriptCheck: "tsc",
 		runner.LintCheck:       "lint",
 		runner.TestRunner:      "test",
+		runner.GitHubActions:   "github",
 	}
 
 	for cmdType, result := range results {
@@ -288,3 +298,4 @@ func outputRunDefault(results map[runner.CommandType]runner.CommandResult, total
 		os.Exit(1)
 	}
 }
+

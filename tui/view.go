@@ -227,6 +227,22 @@ func (m Model) renderCommandTable() string {
 				} else {
 					count = "0"
 				}
+			} else if status.Type == runner.GitHubActions {
+				// For GitHub Actions, show failed jobs / total jobs
+				if len(status.Result.JobResults) > 0 {
+					failedJobs := 0
+					for _, job := range status.Result.JobResults {
+						if job.Conclusion == "failure" || job.Conclusion == "cancelled" || job.Conclusion == "timed_out" {
+							failedJobs++
+						}
+					}
+					count = fmt.Sprintf("%d/%d", failedJobs, len(status.Result.JobResults))
+				} else if status.Result.WorkflowName != "" {
+					// Workflow exists but no jobs data
+					count = "1 workflow"
+				} else {
+					count = "0"
+				}
 			} else {
 				// For other commands, show errors/files
 				if status.Result.IssueCount > 0 {
