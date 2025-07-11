@@ -18,15 +18,21 @@ Show
 # Quick setup of demo directories
 Type "mkdir -p /tmp/demo-projects/{app1,app2,api}"
 Enter
-Type "cd /tmp/demo-projects/app1 && echo '{\"name\":\"app1\",\"scripts\":{\"lint\":\"echo ok\"}}' > package.json"
+Type "cd /tmp/demo-projects/app1"
 Enter
-Type "cd /tmp/demo-projects/app2 && echo '{\"name\":\"app2\",\"scripts\":{\"lint\":\"echo ok\"}}' > package.json"
+Type "npm init -y"
 Enter
-Type "cd /tmp/demo-projects/api && echo '{\"name\":\"api\",\"scripts\":{\"lint\":\"echo ok\"}}' > package.json"
+Type "cd /tmp/demo-projects/app2"
+Enter
+Type "npm init -y"
+Enter
+Type "cd /tmp/demo-projects/api"
+Enter
+Type "npm init -y"
 Enter
 Type "cd /Users/kooshapari/Cwatch"
 Enter
-Sleep 1s
+Sleep 2s
 
 # Launch master interface with multiple directories - show real matrix
 Type "./build/kwatch master /tmp/demo-projects/app1 /tmp/demo-projects/app2 /tmp/demo-projects/api"
