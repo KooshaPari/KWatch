@@ -110,3 +110,10 @@ tmp/
 screenshots/videos/
 screenshots/palette*.png
 *.webm
+
+# Local development & cloud configs
+.hive-mind/
+.env.local
+config/claude-desktop-final.json
+config/*-local.json
+config/*-dev.json
