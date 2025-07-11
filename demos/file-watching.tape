@@ -9,82 +9,54 @@ Set Width 1200
 Set Height 800
 Set Theme "Molokai"
 
-# Clear screen and start demo
+# Start clean
 Hide
 Type "clear"
 Enter
 Show
 
-# Title
-Type "# KWatch - Real-time File Watching"
-Enter
-Sleep 1s
-
-Type "# KWatch automatically detects file changes and runs checks"
-Enter
-Sleep 1s
-
-# Start kwatch in background mode for this demo
-Type "# Let's start KWatch with file watching enabled"
-Enter
+# Start kwatch daemon for file watching demo
 Type "./build/kwatch daemon --port 3737 &"
 Enter
-Sleep 2s
+Sleep 3s
 
 # Show initial status
-Type "# Check initial status:"
-Enter
 Type "curl -s http://localhost:3737/status/compact"
 Enter
 Sleep 2s
-
-Type "# Now let's watch what happens when we modify a file..."
-Enter
-Sleep 1s
 
 # Create a test file to modify
 Type "echo 'let x = 1;' > test-file.js"
 Enter
-Sleep 1s
+Sleep 2s
 
 # Check status after file change
-Type "# Status after file change:"
-Enter
 Type "curl -s http://localhost:3737/status/compact"
 Enter
 Sleep 2s
 
-# Modify the file to introduce an error
-Type "# Let's introduce a syntax error:"
-Enter
+# Modify file to introduce error
 Type "echo 'let x = ;' > test-file.js"
 Enter
-Sleep 1s
+Sleep 2s
 
-# Check status again
+# Check status shows error detection
 Type "curl -s http://localhost:3737/status/compact"
 Enter
 Sleep 2s
 
 # Fix the file
-Type "# Fix the syntax error:"
-Enter
 Type "echo 'let x = 1;' > test-file.js"
 Enter
-Sleep 1s
+Sleep 2s
 
-# Final status check
+# Final status check shows fix
 Type "curl -s http://localhost:3737/status/compact"
 Enter
 Sleep 2s
 
-Type "# File watching provides:"
-Enter
-Type "# • Automatic triggering of checks on file changes"
-Enter
-Type "# • Real-time feedback during development"
-Enter
-Type "# • Continuous integration without manual intervention"
+# Show full status JSON
+Type "curl -s http://localhost:3737/status"
 Enter
 Sleep 3s
 

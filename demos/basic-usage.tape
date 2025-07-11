@@ -9,75 +9,55 @@ Set Width 1200
 Set Height 800
 Set Theme "Molokai"
 
-# Clear screen and start demo
+# Start clean
 Hide
 Type "clear"
 Enter
 Show
 
-# Show what we're about to do
-Type "# KWatch - Real-time Project Monitoring TUI"
-Enter
-Sleep 1s
-
-Type "# Let's launch the KWatch TUI interface for this project"
-Enter
-Sleep 1s
-
+# Launch KWatch TUI directly - no commentary, just the app
 Type "./build/kwatch ."
 Enter
 
-# Wait for TUI to load and show interface
+# Wait for TUI to fully load and show monitoring interface
+Sleep 4s
+
+# Show help screen to demonstrate controls
+Type "h"
 Sleep 3s
 
-# Show TUI controls
-Key "h"
-Sleep 2s
-
-# Go back to main view
-Key "Escape"
+# Exit help back to main monitoring view
+Escape
 Sleep 1s
 
-# Force a refresh to show monitoring in action
-Key "r"
-Sleep 3s
+# Force a refresh to show real-time monitoring
+Type "r"
+Sleep 4s
 
-# Switch to status view
-Key "s"
-Sleep 2s
+# Switch to status view to show different interface modes
+Type "s"
+Sleep 3s
 
 # Switch to logs view
-Key "l"
-Sleep 2s
-
-# Navigate through logs
-Key "Down"
-Sleep 0.5s
-Key "Down"
-Sleep 0.5s
-Key "Up"
-Sleep 1s
-
-# Go back to main monitoring view
-Key "s"
-Sleep 2s
-
-# Show one more refresh cycle
-Key "r"
+Type "l"
 Sleep 3s
 
-# Exit the TUI
-Key "q"
+# Navigate through logs to show interactivity
+Down
+Sleep 1s
+Down
+Sleep 1s
+Up
 Sleep 1s
 
-Type "# KWatch provides real-time monitoring of:"
-Enter
-Type "# • TypeScript compilation (TSC)"
-Enter
-Type "# • Code linting (LINT)"
-Enter
-Type "# • Test execution (TEST)"
-Enter
-Type "# • GitHub Actions (GITHUB)"
-Enter
+# Return to main monitoring view
+Escape
 Sleep 2s
+
+# One final refresh to show live monitoring
+Type "r"
+Sleep 4s
+
+# Exit the TUI
+Type "q"
+Sleep 1s

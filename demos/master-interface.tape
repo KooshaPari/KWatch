@@ -9,95 +9,53 @@ Set Width 1200
 Set Height 800
 Set Theme "Molokai"
 
-# Clear screen and start demo
+# Start clean
 Hide
 Type "clear"
 Enter
 Show
 
-# Title
-Type "# KWatch - Master Interface"
-Enter
-Sleep 1s
-
-Type "# Master KWatch monitors multiple projects from a unified interface"
-Enter
-Sleep 1s
-
-# Create some example directories for demo
+# Quick setup of demo directories
 Type "mkdir -p /tmp/demo-projects/{app1,app2,api}"
 Enter
-Sleep 0.5s
-
-Type "# Let's create basic project structures for our demo"
+Type "cd /tmp/demo-projects/app1 && echo '{\"name\":\"app1\",\"scripts\":{\"lint\":\"echo ok\"}}' > package.json"
 Enter
-
-# Set up app1 with package.json
-Type "cd /tmp/demo-projects/app1"
+Type "cd /tmp/demo-projects/app2 && echo '{\"name\":\"app2\",\"scripts\":{\"lint\":\"echo ok\"}}' > package.json"
 Enter
-Type "echo '{\"name\":\"app1\",\"scripts\":{\"lint\":\"echo 'Linting app1...'\"}}' > package.json"
+Type "cd /tmp/demo-projects/api && echo '{\"name\":\"api\",\"scripts\":{\"lint\":\"echo ok\"}}' > package.json"
 Enter
-
-# Set up app2 with package.json  
-Type "cd /tmp/demo-projects/app2"
-Enter
-Type "echo '{\"name\":\"app2\",\"scripts\":{\"lint\":\"echo 'Linting app2...'\"}}' > package.json"
-Enter
-
-# Set up api with package.json
-Type "cd /tmp/demo-projects/api"
-Enter
-Type "echo '{\"name\":\"api\",\"scripts\":{\"lint\":\"echo 'Linting api...'\"}}' > package.json"
-Enter
-
-# Go back to our main directory
 Type "cd /Users/kooshapari/Cwatch"
 Enter
 Sleep 1s
 
-Type "# Now let's launch Master KWatch to monitor all three projects"
-Enter
-Sleep 1s
-
-# Launch master interface with multiple directories
+# Launch master interface with multiple directories - show real matrix
 Type "./build/kwatch master /tmp/demo-projects/app1 /tmp/demo-projects/app2 /tmp/demo-projects/api"
 Enter
 
 # Wait for master interface to load and show the matrix
-Sleep 5s
+Sleep 6s
 
 # Force a refresh to show monitoring in action
-Key "r"
-Sleep 3s
+Type "r"
+Sleep 4s
 
 # Show help to demonstrate controls
-Key "h"
-Sleep 2s
-
-# Go back to matrix view
-Key "Escape"
-Sleep 1s
-
-# Another refresh cycle
-Key "r"
+Type "h"
 Sleep 3s
 
-# Exit the master interface
-Key "q"
-Sleep 1s
-
-Type "# Master KWatch provides:"
-Enter
-Type "# • Unified matrix view of multiple projects"
-Enter
-Type "# • Real-time status updates across all directories"
-Enter
-Type "# • Centralized monitoring dashboard"
-Enter
-Type "# • Project health at a glance"
-Enter
+# Go back to matrix view
+Escape
 Sleep 2s
+
+# Another refresh cycle to show live updates
+Type "r"
+Sleep 4s
+
+# Exit the master interface
+Type "q"
+Sleep 1s
 
 # Clean up demo directories
 Type "rm -rf /tmp/demo-projects"
 Enter
+Sleep 1s
